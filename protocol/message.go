@@ -73,6 +73,7 @@ type CompressType byte
 
 const (
 	// None does not compress.
+	//todo 这里为什么可以这样写嗯? CompressType有什么作用
 	None CompressType = iota
 	// Gzip uses gzip compression.
 	Gzip
