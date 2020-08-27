@@ -29,11 +29,13 @@ type PluginContainer interface {
 	DoPreCall(ctx context.Context, serviceName, methodName string, args interface{}) (interface{}, error)
 	DoPostCall(ctx context.Context, serviceName, methodName string, args, reply interface{}) (interface{}, error)
 
-	DoPreWriteResponse(context.Context, *protocol.Message, *protocol.Message) error
+	DoPreWriteResponse(context.Context, *protocol.Message, *protocol.Message, error) error
 	DoPostWriteResponse(context.Context, *protocol.Message, *protocol.Message, error) error
 
 	DoPreWriteRequest(ctx context.Context) error
 	DoPostWriteRequest(ctx context.Context, r *protocol.Message, e error) error
+
+	DoHeartbeatRequest(ctx context.Context, req *protocol.Message) error
 }
 
 // Plugin is the server plugin interface.
@@ -89,7 +91,7 @@ type (
 
 	//PreWriteResponsePlugin represents .
 	PreWriteResponsePlugin interface {
-		PreWriteResponse(context.Context, *protocol.Message, *protocol.Message) error
+		PreWriteResponse(context.Context, *protocol.Message, *protocol.Message, error) error
 	}
 
 	//PostWriteResponsePlugin represents .
@@ -105,6 +107,11 @@ type (
 	//PostWriteRequestPlugin represents .
 	PostWriteRequestPlugin interface {
 		PostWriteRequest(ctx context.Context, r *protocol.Message, e error) error
+	}
+
+	// HeartbeatPlugin is .
+	HeartbeatPlugin interface {
+		HeartbeatRequest(ctx context.Context, req *protocol.Message) error
 	}
 )
 
@@ -294,10 +301,10 @@ func (p *pluginContainer) DoPostCall(ctx context.Context, serviceName, methodNam
 }
 
 // DoPreWriteResponse invokes PreWriteResponse plugin.
-func (p *pluginContainer) DoPreWriteResponse(ctx context.Context, req *protocol.Message, res *protocol.Message) error {
+func (p *pluginContainer) DoPreWriteResponse(ctx context.Context, req *protocol.Message, res *protocol.Message, err error) error {
 	for i := range p.plugins {
 		if plugin, ok := p.plugins[i].(PreWriteResponsePlugin); ok {
-			err := plugin.PreWriteResponse(ctx, req, res)
+			err := plugin.PreWriteResponse(ctx, req, res, err)
 			if err != nil {
 				return err
 			}
@@ -340,6 +347,20 @@ func (p *pluginContainer) DoPostWriteRequest(ctx context.Context, r *protocol.Me
 	for i := range p.plugins {
 		if plugin, ok := p.plugins[i].(PostWriteRequestPlugin); ok {
 			err := plugin.PostWriteRequest(ctx, r, e)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// DoHeartbeatRequest invokes HeartbeatRequest plugin.
+func (p *pluginContainer) DoHeartbeatRequest(ctx context.Context, r *protocol.Message) error {
+	for i := range p.plugins {
+		if plugin, ok := p.plugins[i].(HeartbeatPlugin); ok {
+			err := plugin.HeartbeatRequest(ctx, r)
 			if err != nil {
 				return err
 			}

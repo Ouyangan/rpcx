@@ -383,14 +383,14 @@ func (s *Server) serveConn(conn net.Conn) {
 					res.SetCompressType(req.CompressType())
 				}
 				handleError(res, err)
-				s.Plugins.DoPreWriteResponse(ctx, req, res)
+				s.Plugins.DoPreWriteResponse(ctx, req, res, err)
 				data := res.EncodeSlicePointer()
 				_, err := conn.Write(*data)
 				protocol.PutData(data)
 				s.Plugins.DoPostWriteResponse(ctx, req, res, err)
 				protocol.FreeMsg(res)
 			} else {
-				s.Plugins.DoPreWriteResponse(ctx, req, nil)
+				s.Plugins.DoPreWriteResponse(ctx, req, nil, err)
 			}
 			protocol.FreeMsg(req)
 			// auth failed, closed the connection
@@ -405,6 +405,7 @@ func (s *Server) serveConn(conn net.Conn) {
 			defer atomic.AddInt32(&s.handlerMsgNum, -1)
 
 			if req.IsHeartbeat() {
+				s.Plugins.DoHeartbeatRequest(ctx, req)
 				req.SetMessageType(protocol.Response)
 				data := req.EncodeSlicePointer()
 				conn.Write(*data)
@@ -424,7 +425,7 @@ func (s *Server) serveConn(conn net.Conn) {
 				log.Warnf("rpcx: failed to handle request: %v", err)
 			}
 
-			s.Plugins.DoPreWriteResponse(newCtx, req, res)
+			s.Plugins.DoPreWriteResponse(newCtx, req, res, err)
 			if !req.IsOneway() {
 				if len(resMetadata) > 0 { //copy meta in context to request
 					meta := res.Metadata
